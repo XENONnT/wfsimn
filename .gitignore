@@ -1,0 +1,12 @@
+
+notebooks/*
+wfsimn.egg-info
+__init__.pyc
+__pycache__
+wfsimn/data/mc_nsorted.root
+wfsimn/data/wave_one_pe.csv
+wfsimn/data/wave_pedestal.csv
+.idea
+venv
+work
+docs/build
