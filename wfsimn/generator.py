@@ -17,10 +17,10 @@ class generator():
 
     def load_data(self, average_pulse_file_name, mc_file_name):
 
-        self.average_pulse = np.load(self.__data_path + "average_pulse.npy")
+        self.average_pulse = np.load(average_pulse_file_name)
         # print(self.average_pulse)
 
-        file = uproot.open(self.__data_path + 'mc_nsorted_short.root')  # nSorted file
+        file = uproot.open(mc_file_name)  # nSorted file
         events = file['events/events']
         self.hit_ids = events.array('pmthitid')  # nveto id 20000--20199
         self.hit_times = events.array('pmthittime') * 1.e9 # unit: ns
@@ -117,12 +117,4 @@ class generator():
 
 
 if __name__ == '__main__':
-
-    logging.basicConfig()
-    logging.getLogger("wfsimn").setLevel(level=logging.INFO)
-
-    sns.set(context='notebook', style='whitegrid', palette='bright')
-
-    gen = generator()
-    gen.load_data()
-    gen.generate_by_mc(0)
+    pass

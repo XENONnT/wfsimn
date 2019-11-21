@@ -13,7 +13,7 @@ class manager:
         # Parameters
         self.__data_path = pkg_resources.resource_filename('wfsimn', 'data/')
 
-        self.average_pulse_file_name = self.__data_path + 'average_pulse.npy'
+        self.average_pulse_file_name = self.__data_path + 'average_pulse_v2.npy'
         self.mc_file_name = self.__data_path + 'mc_nsorted_short.root'
 
     def generate_by_mc(self):
