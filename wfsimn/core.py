@@ -41,10 +41,9 @@ class manager:
         vis = wfsimn.visualizer(self.wfs[eventid])
         return vis
 
-    def analyze(self):
-        # TODO: define user analyzer
-        ana = wfsimn.analyzer(self.wfs[0])
-        return
+    def analyzer(self):
+        ana = wfsimn.analyzer(self.wfs)
+        return ana
 
 
 if __name__ == '__main__':

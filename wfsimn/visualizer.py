@@ -38,6 +38,24 @@ class visualizer():
 
         return
 
+    def show_tops(self, num_shown = 5, save=False, filename='pulse_top.png'):
+
+        time = np.arange(0, 1000, 2)
+
+        max_list = self.wf.max(axis=0)
+        max_order = np.sort(max_list)[::-1]
+        index_pmts = np.where(max_list > max_order[num_shown])[0]
+
+        for index_pmt in index_pmts:
+            pulse = self.wf[:, index_pmt]
+            sns.lineplot(time, pulse, label='PMT#'+str(index_pmt))
+
+        plt.xlabel('time (ns)')
+        plt.ylabel('ADC/2ns')
+
+        if save is True: plt.savefig(filename)
+        return
+
     def show_power_spectrum(self, pmtid):
 
         pulse = self.wf[:, pmtid]
