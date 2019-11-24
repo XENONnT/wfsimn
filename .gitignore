@@ -10,3 +10,11 @@ wfsimn/data/wave_pedestal.csv
 venv
 work
 docs/build
+
+##
+wfsimn/.ipynb_checkpoints/
+wfsimn/data/average_pulse.npy
+wfsimn/test1.png
+wfsimn/wfsimn.srctrlbm
+wfsimn/wfsimn.srctrldb
+wfsimn/wfsimn.srctrlprj
