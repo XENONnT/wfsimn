@@ -1,5 +1,5 @@
-
 import pkg_resources
+import logging
 import numpy as np
 from scipy import fftpack
 import matplotlib.pyplot as plt
@@ -9,6 +9,7 @@ import seaborn as sns
 class visualizer():
 
     def __init__(self, wf):
+        self.logger = logging.getLogger(__name__)
         self.wf = wf
         sns.set(style='whitegrid')
         self.reset_to_write_cbar = False
@@ -75,7 +76,7 @@ class visualizer():
 
         pulse = self.reshape_to_2d(self.wf)
 
-        print('shape', pulse.shape)
+        self.logger.info('PMT array shape', pulse.shape)
         #plt.imshow(pulse[timebin].T, vmax=120, vmin=-30)
         plt.imshow(pulse[timebin], vmax=120, vmin=-30)
 
