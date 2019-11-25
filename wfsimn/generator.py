@@ -41,11 +41,19 @@ class generator():
 
     def generate_1ev_by_mc(self, eventid=0):
 
+        #print('ev.', eventid)
+
         min_timing = 9999999999.
         for (id, time) in zip(self.hit_ids[eventid], self.hit_times[eventid]):
             if (not 20000 <= id < 20120): continue
-            if (min_timing > time): min_timing = time
+            if ((min_timing > time) & (time > 500)): min_timing = time  # magic 500 (ns); fix later
         hit_time_test = self.hit_times[eventid] - min_timing
+
+        #print('min timing', min_timing)
+        #print('fixed hit time', hit_time_test)
+
+        #for hit, pmt_id in zip(hit_time_test, self.hit_ids[eventid]):
+            #print('id-hit', pmt_id, hit)
 
         wf = self.generate(self.hit_ids[eventid], hit_time_test)
 
@@ -84,15 +92,18 @@ class generator():
             tbin = int(pmt_time / 2)
             active_bin = self.__num_gen_tbins - tbin
 
+            #print('debug1 pmtid, pmttime', pmt_id, pmt_time)
+            #print('debug2 tbin, active_bin', tbin, active_bin)
+
             if 0 < active_bin <= self.__num_spe_tbins:
                 self.__simulated_pulse[tbin:tbin + active_bin, pmt_id] += self.average_pulse[0:active_bin] * gain_spread_factor
             elif self.__num_spe_tbins < active_bin <= self.__num_gen_tbins:
                 active_bin = self.__num_spe_tbins
                 self.__simulated_pulse[tbin:tbin + active_bin, pmt_id] += self.average_pulse[0:active_bin] * gain_spread_factor
-            elif self.__num_gen_tbins < active_bin:
+            elif self.__num_gen_tbins < active_bin < self.__num_gen_tbins + self.__num_spe_tbins:
                 active_bin -= 500
                 self.__simulated_pulse[0:active_bin, pmt_id] += self.average_pulse[-1*active_bin:] * gain_spread_factor
-            elif active_bin < 0:
+            else:
                 continue
 
         # 3. Add noise (very, very tentative from SWT)
