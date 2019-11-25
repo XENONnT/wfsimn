@@ -1,16 +1,19 @@
+import logging
 import numpy as np
 from tqdm import tqdm
+
 
 class analyzer():
 
     def __init__(self, wfs):
+        self.logger = logging.getLogger(__name__)
         self.wfs = wfs
 
     def loop(self, adc_thre=40, gate_time_ns=200):
 
         hit_numbers = []
 
-        for wf in tqdm(self.wfs):
+        for wf in tqdm(self.wfs, leave=False):
 
             # timing_fall_dict = {}
             timing_dict = {}

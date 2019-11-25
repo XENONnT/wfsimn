@@ -3,22 +3,24 @@ import logging
 import numpy as np
 from scipy import fftpack
 import pandas as pd
+from tqdm import tqdm
 import uproot
 import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set(context='notebook', style='whitegrid', palette='bright')
 
-logger = logging.getLogger(__name__)
 
 class generator():
 
     def __init__(self, seed=0):
+        self.logger = logging.getLogger(__name__)
+        self.logger.info('Generator Initialize')
+        np.random.seed(seed)
         self.__data_path = pkg_resources.resource_filename('wfsimn', 'data/')
 
     def load_data(self, average_pulse_file_name, mc_file_name):
 
         self.average_pulse = np.load(average_pulse_file_name)
-        # print(self.average_pulse)
 
         file = uproot.open(mc_file_name)  # nSorted file
         events = file['events/events']
@@ -26,8 +28,18 @@ class generator():
         self.hit_times = events.array('pmthittime') * 1.e9 # unit: ns
         self.nentries = len(self.hit_ids)
 
+        self.logger.info('#of events in TTree:'+str(self.nentries))
 
-    def generate_by_mc(self, eventid=0):
+    def generate_by_mc(self):
+
+        wfs = []
+        # print('Generating pulse...')
+        for i_ev in tqdm(range(self.nentries)):
+            wf = self.generate_1ev_by_mc(i_ev)
+            wfs.append(wf)
+        return wfs
+
+    def generate_1ev_by_mc(self, eventid=0):
 
         min_timing = 9999999999.
         for (id, time) in zip(self.hit_ids[eventid], self.hit_times[eventid]):
@@ -102,7 +114,6 @@ class generator():
             for i in range(num_of_dark):
                 pmt_ids.append(i_pmt)
                 pmt_times.append(np.random.randint(0, 1000))
-                # print('add', i_pmt)
 
         dark_ids = np.array(pmt_ids, dtype='uint8') + 20000
         dark_times = np.array(pmt_times, dtype='uint8')
