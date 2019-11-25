@@ -33,11 +33,13 @@ class manager:
         return
 
     def save_pickle(self, filename='wfs.dat'):
+        self.logger.info('Save '+filename)
         with open(filename, 'wb') as file:
             pickle.dump(self.wfs, file)
         return
 
     def load_pickle(self, filename='wfs.dat'):
+        self.logger.info('Load '+filename)
         with open(filename, 'rb') as file:
             self.wfs = pickle.load(file)
         return
@@ -60,10 +62,14 @@ if __name__ == '__main__':
 
     logging.basicConfig(level='DEBUG')
 
-    man = manager()
-    #man.average_pulse_file_name = ''
-    #man.mc_file_name = ''
-    man.generate_by_mc()
-    #man.save_pickle()
+    mc_name = 'mc52sn0116'
+    #batchid = 1
+    for batchid in range(1, 11, 1):
+        man = manager()
+        man.mc_file_name = '/Users/mzks/xenon/mc/data/' + mc_name + '/output' + str(batchid).zfill(4) + '_Sort.root'
+
+        gen = man.generator()
+        man.wfs = gen.generate_by_mc()
+        man.save_pickle('/Users/mzks/xenon/wfsimn/notebooks/wf_files/' + mc_name + '_' + str(batchid).zfill(4) + '.pkl')
 
 

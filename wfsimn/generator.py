@@ -43,10 +43,13 @@ class generator():
 
         #print('ev.', eventid)
 
-        min_timing = 9999999999.
-        for (id, time) in zip(self.hit_ids[eventid], self.hit_times[eventid]):
-            if (not 20000 <= id < 20120): continue
-            if ((min_timing > time) & (time > 500)): min_timing = time  # magic 500 (ns); fix later
+        nv_times = [time for pmtid, time in zip(self.hit_ids[eventid], self.hit_times[eventid])
+                    if (20000 <= pmtid < 20120)]
+        time_minimum_value = np.mean(nv_times if nv_times else 0) - np.std(nv_times if nv_times else 0) * 3 # 3 sigma
+        min_timing = min([time for pmtid, time in zip(self.hit_ids[eventid], self.hit_times[eventid])
+                    if (20000 <= pmtid < 20120) & (time > time_minimum_value)],
+                         default=0)
+
         hit_time_test = self.hit_times[eventid] - min_timing
 
         #print('min timing', min_timing)
