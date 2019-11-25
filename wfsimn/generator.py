@@ -3,6 +3,7 @@ import logging
 import numpy as np
 from scipy import fftpack
 import pandas as pd
+from tqdm import tqdm
 import uproot
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -14,13 +15,12 @@ class generator():
     def __init__(self, seed=0):
         self.logger = logging.getLogger(__name__)
         self.logger.info('Generator Initialize')
-
+        np.random.seed(seed)
         self.__data_path = pkg_resources.resource_filename('wfsimn', 'data/')
 
     def load_data(self, average_pulse_file_name, mc_file_name):
 
         self.average_pulse = np.load(average_pulse_file_name)
-        self.logger.debug('average pulse', self.average_pulse)
 
         file = uproot.open(mc_file_name)  # nSorted file
         events = file['events/events']
@@ -30,7 +30,16 @@ class generator():
 
         self.logger.info('#of events in TTree:'+str(self.nentries))
 
-    def generate_by_mc(self, eventid=0):
+    def generate_by_mc(self):
+
+        wfs = []
+        # print('Generating pulse...')
+        for i_ev in tqdm(range(self.nentries)):
+            wf = self.generate_1ev_by_mc(i_ev)
+            wfs.append(wf)
+        return wfs
+
+    def generate_1ev_by_mc(self, eventid=0):
 
         min_timing = 9999999999.
         for (id, time) in zip(self.hit_ids[eventid], self.hit_times[eventid]):

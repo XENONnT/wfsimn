@@ -42,6 +42,11 @@ class manager:
             self.wfs = pickle.load(file)
         return
 
+    def generator(self):
+        gen = wfsimn.generator()
+        gen.load_data(self.average_pulse_file_name, self.mc_file_name)
+        return gen
+
     def event_visualizer(self, eventid=0):
         vis = wfsimn.visualizer(self.wfs[eventid])
         return vis
