@@ -62,7 +62,7 @@ if __name__ == '__main__':
     man = wfsimn.manager()
     mc_name = 'mc51'
     batchid = 1
-    man.mc_file_name = '/Users/mzks/xenon/mc/data/' + mc_name + '/output' + str(batchid).zfill(4) + '_Sort.root'
+    man.mc_file_name = '/Users/mzks/xenon/mc/nv/' + mc_name + '/output' + str(batchid).zfill(4) + '_Sort.root'
     man.load_pickle('/Users/mzks/xenon/wfsimn/notebooks/wf_files/' + mc_name + '_' + str(batchid).zfill(4) + '.pkl')
 
     ana = man.analyzer()

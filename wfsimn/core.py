@@ -62,14 +62,14 @@ if __name__ == '__main__':
 
     logging.basicConfig(level='DEBUG')
 
-    mc_name = 'mc52sn0116'
+    mc_name = 'mc52o'
     #batchid = 1
     for batchid in range(1, 11, 1):
         man = manager()
-        man.mc_file_name = '/Users/mzks/xenon/mc/data/' + mc_name + '/output' + str(batchid).zfill(4) + '_Sort.root'
+        man.mc_file_name = '/Users/mzks/xenon/mc/nv/' + mc_name + '/output' + str(batchid).zfill(4) + '_Sort.root'
 
         gen = man.generator()
         man.wfs = gen.generate_by_mc()
-        man.save_pickle('/Users/mzks/xenon/wfsimn/notebooks/wf_files/' + mc_name + '_' + str(batchid).zfill(4) + '.pkl')
+        man.save_pickle('/Users/mzks/xenon/mc/nv/' + mc_name + '/output' + str(batchid).zfill(4) + '.pkl')
 
 
