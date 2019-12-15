@@ -71,9 +71,9 @@ class generator():
         strax_readable_list = []
 
         for pmtid in range(20000, 20120):
-
+            #print('pmtid', pmtid)
             clusters = self.make_clusters(pmtid, pmt_times, pmt_ids)
-
+            #print(clusters)
             for cluster in clusters:
 
                 if len(cluster) == 0: continue
@@ -115,7 +115,7 @@ class generator():
 
     def make_clusters(self, pmtid, pmt_times, pmt_ids):
         ## Make Clusters
-        ts = [time for time, pid in zip(pmt_times, pmt_ids) if pid == pmtid]  # ns
+        ts = [time for time, pid in zip(pmt_times, pmt_ids) if pid == pmtid and 0 < time < 1.e9]  # ns
         ts.sort()
         clusters = []
         time_list = []
@@ -140,7 +140,11 @@ class generator():
 
 
 if __name__ == '__main__':
+
     gen = generator()
     gen.load_data('./data/average_pulse_v2.npy', './data/mc51s4_short.root')
-    aa = gen.generate_1ev_by_mc(33)
+
+    #gen.generate_1ev_by_mc(1327)
+
+    #gen.generate_by_mc()
 
