@@ -22,8 +22,8 @@ class generator():
 
         self.average_pulse = np.load(average_pulse_file_name)
 
-        file = uproot.open(mc_file_name)  # nSorted file
-        events = file['events/events']
+        file = uproot.open(mc_file_name)  # pamn file
+        events = file['events']
         self.hit_ids = events.array('pmthitid')  # nveto id 20000--20199
         self.hit_times = events.array('pmthittime') * 1.e9 # unit: ns
         self.nentries = len(self.hit_ids)
@@ -41,105 +41,106 @@ class generator():
 
     def generate_1ev_by_mc(self, eventid=0):
 
-        #print('ev.', eventid)
-
-        nv_times = [time for pmtid, time in zip(self.hit_ids[eventid], self.hit_times[eventid])
-                    if (20000 <= pmtid < 20120)]
-        time_minimum_value = np.mean(nv_times if nv_times else 0) - np.std(nv_times if nv_times else 0) * 3 # 3 sigma
-        min_timing = min([time for pmtid, time in zip(self.hit_ids[eventid], self.hit_times[eventid])
-                    if (20000 <= pmtid < 20120) & (time > time_minimum_value)],
-                         default=0)
-
-        hit_time_test = self.hit_times[eventid] - min_timing
-
-        #print('min timing', min_timing)
-        #print('fixed hit time', hit_time_test)
-
-        #for hit, pmt_id in zip(hit_time_test, self.hit_ids[eventid]):
-            #print('id-hit', pmt_id, hit)
-
-        wf = self.generate(self.hit_ids[eventid], hit_time_test)
-
-        return wf
+        strax_readable_list = self.generate(self.hit_ids[eventid], self.hit_times[eventid])
+        return strax_readable_list
 
     def generate(self, pmt_ids, pmt_times):
+
+
         # pmt_ids (20000--20119)
         # pmt_times (ns)
-        self.__num_gen_tbins = 500  # bins bin/2ns
+        self.__num_gen_tbins = 40  # bins bin/2ns
         self.__num_spe_tbins = 50  # tbins bin/2ns
-        self.__num_pmts = 120  # total number of nVeto PMTs
+        gen_pls_bins = int(50 + self.__num_gen_tbins + self.__num_spe_tbins)
 
-        self.__simulated_pulse = np.zeros((self.__num_gen_tbins, self.__num_pmts))
+        nv_dtype = [
+            (('Channel/PMT number', 'channel'), np.int16),
+            (('Time resolution in ns', 'dt'), np.int16),
+            (('Start time of the interval (ns since unix epoch)', 'time'), np.int64), # Don't try to make O(second) long intervals!
+            (('Length of the interval in samples', 'length'), np.int32),
+            (("Integral in ADC x samples", 'area'), np.int32),
+            (('Length of pulse to which the record belongs (without zero-padding)', 'pulse_length'), np.int32),
+            (('Fragment number in the pulse', 'record_i'), np.int16),
+            (('Baseline in ADC counts. data = int(baseline) - data_orig', 'baseline'), np.float32),
+            (('Level of data reduction applied (strax.ReductionLevel enum)', 'reduction_level'), np.uint8),
+            # Note this is defined as a SIGNED integer, so we can
+            # still represent negative values after subtracting baselines
+            (('Waveform data in ADC counts above baseline', 'data'), np.int16, gen_pls_bins),
+        ]
 
-        # 1. Add dark rate
-        dark_ids, dark_times = self.add_dark()
-        pmt_ids = np.append(pmt_ids, dark_ids)
-        pmt_times = np.append(pmt_times, dark_times)
+        strax_readable_list = []
 
-        for (pmt_id, pmt_time) in zip(pmt_ids, pmt_times):
+        for pmtid in range(20000, 20120):
 
-            if not 20000 <= pmt_id < 20120: continue
-            pmt_id = pmt_id - 20000
+            clusters = self.make_clusters(pmtid, pmt_times, pmt_ids)
 
-            # 1. About timing
-            # 1.1 Transit Time Spread - tentative value from SWT
-            pmt_time = pmt_time + np.random.normal(0, 3.0/2.354820) # 3 ns FWHM as tentative
-            # 1.2 Transit Time - Not considered (No data from SWT)
-            # 1.3 After pulse - Not considered yet (conservatively)
+            for cluster in clusters:
 
-            # 2. Add Pulses
-            # 2.1 SPE Spread
-            gain_spread_factor = np.random.normal(1, 0.3)  # 30%, very tentative value estimatd from SWT
+                if len(cluster) == 0: continue
+                pulse = np.zeros(gen_pls_bins)
+                for time in cluster:
+                    gain_spread_factor = np.random.normal(1, 0.3)  # 30%, very tentative value estimatd from SWT
+                    pulse[50-15+int((time - cluster[0]) / 2) : 50-15+int((time - cluster[0]) / 2) + self.__num_spe_tbins] \
+                        += self.average_pulse * gain_spread_factor
 
-            # 2.2 Add Pulse
-            tbin = int(pmt_time / 2)
-            active_bin = self.__num_gen_tbins - tbin
+                # 3. Add noise (very, very tentative from SWT)
+                pulse += np.random.normal(loc=0., scale=6.58, size=(gen_pls_bins))
+                # 6.58 is tentative value from SWT 10 bit digitizer
 
-            #print('debug1 pmtid, pmttime', pmt_id, pmt_time)
-            #print('debug2 tbin, active_bin', tbin, active_bin)
+                # 4. floorized
+                pulse = np.floor(pulse).astype(np.int16)
 
-            if 0 < active_bin <= self.__num_spe_tbins:
-                self.__simulated_pulse[tbin:tbin + active_bin, pmt_id] += self.average_pulse[0:active_bin] * gain_spread_factor
-            elif self.__num_spe_tbins < active_bin <= self.__num_gen_tbins:
-                active_bin = self.__num_spe_tbins
-                self.__simulated_pulse[tbin:tbin + active_bin, pmt_id] += self.average_pulse[0:active_bin] * gain_spread_factor
-            elif self.__num_gen_tbins < active_bin < self.__num_gen_tbins + self.__num_spe_tbins:
-                active_bin -= 500
-                self.__simulated_pulse[0:active_bin, pmt_id] += self.average_pulse[-1*active_bin:] * gain_spread_factor
+                # 5. calc baseline
+                baseline = int(pulse[0:50].mean())
+                pulse = pulse - baseline
+                integral = pulse.sum()
+
+                record = np.array((
+                    pmtid,
+                    2,
+                    int(cluster[0]),
+                    100, #? Length of interval in sample
+                    integral,
+                    100, #? Length of pulse to which the record belongs
+                    1,
+                    baseline,
+                    100, #? 'Level of data reduction applied (strax.ReductionLevel enum)
+                    pulse
+                ), dtype=nv_dtype )
+
+                strax_readable_list.append(record)
+                #print(pulse)
+
+        return strax_readable_list
+
+    def make_clusters(self, pmtid, pmt_times, pmt_ids):
+        ## Make Clusters
+        ts = [time for time, pid in zip(pmt_times, pmt_ids) if pid == pmtid]  # ns
+        ts.sort()
+        clusters = []
+        time_list = []
+        first_hit_t = -1
+        in_window = False
+        time_window = self.__num_gen_tbins * 2  # ns
+        for t in ts:
+            if first_hit_t != -1 and t - first_hit_t > time_window:
+                in_window = False
+                clusters.append(time_list)
+            if in_window == False:  # init hit of clusters
+                time_list = []
+                time_list.append(t)
+                first_hit_t = t
+                in_window = True
             else:
-                continue
-
-        # 3. Add noise (very, very tentative from SWT)
-        self.__simulated_pulse += np.random.normal(loc=0., scale=6.58, size=(self.__num_gen_tbins,self.__num_pmts))
-        # 6.58 is tentative value from SWT 10 bit digitizer
-
-        # 4. floorized
-        self.__simulated_pulse = np.floor(self.__simulated_pulse).astype(np.int16)
-
-        return self.__simulated_pulse
-
-
-    def add_dark(self):
-        dark_rate = 2200. # Hz
-        num_of_darks = np.random.poisson(dark_rate * 1000.e-9, 120)
-        pmt_ids, pmt_times = [], []
-        for i_pmt, num_of_dark in enumerate(num_of_darks):
-            if num_of_dark == 0: continue
-            for i in range(num_of_dark):
-                pmt_ids.append(i_pmt)
-                pmt_times.append(np.random.randint(0, 1000))
-
-        dark_ids = np.array(pmt_ids, dtype='uint8') + 20000
-        dark_times = np.array(pmt_times, dtype='uint8')
-        return dark_ids, dark_times
-
-    def add_dark_faster(self):
-        num_of_darks = np.random.poisson(2.2e3 * 1000.e-9 * 120)
-        dark_ids = np.random.randint(0, 120, num_of_darks).astype('uint8') + 20000
-        dark_times = np.random.randint(0, 1000, num_of_darks)
-        return dark_ids, dark_times
+                time_list.append(t)
+        clusters.append(time_list)
+        # clusters : hit time list in the one group list in one PMT
+        return clusters
 
 
 
 if __name__ == '__main__':
-    pass
+    gen = generator()
+    gen.load_data('./data/average_pulse_v2.npy', './data/mc51s4_short.root')
+    aa = gen.generate_1ev_by_mc(33)
+
