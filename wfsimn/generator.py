@@ -98,13 +98,13 @@ class generator():
                 record = np.array((
                     pmtid,
                     2,
-                    int(cluster[0]),
-                    100, #? Length of interval in sample
+                    int(cluster[0]), # TODO: Should refer TPC timing
+                    gen_pls_bins, # Length of interval in sample
                     integral,
-                    100, #? Length of pulse to which the record belongs
-                    1,
+                    gen_pls_bins, # Length of pulse to which the record belongs
+                    0,
                     baseline,
-                    100, #? 'Level of data reduction applied (strax.ReductionLevel enum)
+                    0, #'Level of data reduction applied (strax.ReductionLevel enum)
                     pulse
                 ), dtype=nv_dtype )
 
