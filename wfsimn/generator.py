@@ -53,19 +53,19 @@ class generator():
         self.__num_spe_tbins = 50  # tbins bin/2ns
         gen_pls_bins = int(50 + self.__num_gen_tbins + self.__num_spe_tbins)
 
-        nv_dtype = [
-            (('Channel/PMT number', 'channel'), np.int16),
-            (('Time resolution in ns', 'dt'), np.int16),
+        nv_raw_record_dtype = [
+            (('Channel/PMT number', 'channel'), np.int16), # As tentative, 20000 -- 20199, nV
+            (('Time resolution in ns', 'dt'), np.int16), # 2 for nV
             (('Start time of the interval (ns since unix epoch)', 'time'), np.int64), # Don't try to make O(second) long intervals!
-            (('Length of the interval in samples', 'length'), np.int32),
-            (("Integral in ADC x samples", 'area'), np.int32),
-            (('Length of pulse to which the record belongs (without zero-padding)', 'pulse_length'), np.int32),
-            (('Fragment number in the pulse', 'record_i'), np.int16),
-            (('Baseline in ADC counts. data = int(baseline) - data_orig', 'baseline'), np.float32),
-            (('Level of data reduction applied (strax.ReductionLevel enum)', 'reduction_level'), np.uint8),
+            (('Length of the interval in samples', 'length'), np.int32), # 110
+            (("Integral in ADC x samples", 'area'), np.int32), # Not implemented yet
+            (('Length of pulse to which the record belongs (without zero-padding)', 'pulse_length'), np.int32), # 330
+            (('Fragment number in the pulse', 'record_i'), np.int16), # 0, 1, 2, ...
+            (('Baseline in ADC counts. data = int(baseline) - data_orig', 'baseline'), np.float32), # Not implemented yet
+            (('Level of data reduction applied (strax.ReductionLevel enum)', 'reduction_level'), np.uint8), # 0
             # Note this is defined as a SIGNED integer, so we can
             # still represent negative values after subtracting baselines
-            (('Waveform data in ADC counts above baseline', 'data'), np.int16, gen_pls_bins),
+            (('Waveform data in ADC counts above baseline', 'data'), np.int16, gen_pls_bins), # waveforms
         ]
 
         strax_readable_list = []
@@ -97,8 +97,8 @@ class generator():
 
                 record = np.array((
                     pmtid,
-                    2,
-                    int(cluster[0]), # TODO: Should refer TPC timing
+                    2, # ns
+                    int(cluster[0]),
                     gen_pls_bins, # Length of interval in sample
                     integral,
                     gen_pls_bins, # Length of pulse to which the record belongs
@@ -106,7 +106,7 @@ class generator():
                     baseline,
                     0, #'Level of data reduction applied (strax.ReductionLevel enum)
                     pulse
-                ), dtype=nv_dtype )
+                ), dtype=nv_raw_record_dtype)
 
                 strax_readable_list.append(record)
                 #print(pulse)
@@ -143,8 +143,6 @@ if __name__ == '__main__':
 
     gen = generator()
     gen.load_data('./data/average_pulse_v2.npy', './data/mc51s4_short.root')
-
-    #gen.generate_1ev_by_mc(1327)
-
-    #gen.generate_by_mc()
+    strax_list = gen.generate_1ev_by_mc(0)
+    print(strax_list)
 
