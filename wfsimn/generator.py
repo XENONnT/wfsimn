@@ -62,44 +62,40 @@ class generator():
 
     def generate_by_mc(self):
 
-        wfs = []
-        # print('Generating pulse...')
+        events_records = []
         for i_ev in tqdm(range(self.nentries)):
-            wf = self.generate_1ev_by_mc(i_ev)
-            wfs.append(wf)
-        return wfs
+            event_records = self.generate_1ev_by_mc(i_ev)
+            events_records.append(wf)
+        return events_records
 
 
     def generate_1ev_by_mc(self, eventid=0):
 
-        strax_readable_list = self.generate(self.hit_ids[eventid], self.hit_times[eventid])
-        return strax_readable_list
+        event_records = self.generate(self.hit_ids[eventid], self.hit_times[eventid])
+        return event_records
 
 
     def generate(self, pmt_ids, pmt_times):
 
-        records = []
+        event_records = []
         for pmtid in range(20000, 20120):  # each PMT
-            #print('PMT ID', pmtid)
             clusters = self.make_clusters(pmtid, pmt_times, pmt_ids)  # each cluster
-            #print(clusters)
-            #なぜかここで空
 
             for cluster in clusters:
-                if len(cluster)==0:
-                    continue
+                if len(cluster)==0: continue
 
                 for i in range(len(cluster)):
                     first_time = cluster[0]
                     cluster = [int((time - first_time) / self.dt) for time in cluster]
                     total_pulse_length = np.ceil((self.bins_baseline + cluster[-1] + self.nbins_templete_wf)/self.strax_length)*self.strax_length
                     wf = np.zeros(int(total_pulse_length))
+
                     for time in cluster:
                         fac = np.random.normal(self.pulse_height, self.pulse_spread)
                         wf[self.bins_baseline + time:self.bins_baseline + time + self.nbins_templete_wf] += self.average_pulse * fac / self.pulse_height
                     wf = np.random.normal(self.pulse_baseline_ADC, self.pulse_baseline_spread, len(wf)) - wf  # add baseline noise
-                    #records.append(wf)
 
+                    records = []
                     for i in range(np.int(np.ceil(len(wf) / self.strax_length))):
                         data = wf[i * self.strax_length:(i + 1) * self.strax_length]
 
@@ -116,18 +112,15 @@ class generator():
                             data
                         ), dtype=self.nv_raw_record_dtype)
                         records.append(record)
+                    event_records.append(records)
 
-
-        return records
+        return event_records
 
 
 
 
     def make_clusters(self, pmtid, pmt_times, pmt_ids):
 
-        #print('id', pmtid)
-        #print('times', pmt_times)
-        #print('ids', pmt_ids)
         # still represent negative values after subtracting baselines
         ## Make Clusters
         # Input: pmt_times = [500.e-9, 700.e-9, 900.e-9, 1200.e-9, 2000.e-9] ## sec
@@ -136,7 +129,6 @@ class generator():
 
         ts = [time * 1.e9 for time, pid in zip(pmt_times, pmt_ids) if pid == pmtid]  # ns
 
-        #print('ts', ts)
         ts.sort()
         clusters = []
         time_list = []
@@ -164,5 +156,4 @@ if __name__ == '__main__':
     gen = generator()
     gen.load_data('./data/ave_TEST000012_02242020121353_ch0.npy', './data/mc71_test1.root')
     strax_list = gen.generate_1ev_by_mc(0)
-    #print(strax_list)
 
