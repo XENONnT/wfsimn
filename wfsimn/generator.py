@@ -13,10 +13,39 @@ sns.set(context='notebook', style='whitegrid', palette='bright')
 class generator():
 
     def __init__(self, seed=0):
+
         self.logger = logging.getLogger(__name__)
         self.logger.info('Generator Initialize')
         np.random.seed(seed)
         self.__data_path = pkg_resources.resource_filename('wfsimn', 'data/')
+
+        self.dt = 2  # Time resolution in ns
+        self.strax_length = 110  # waveform length in one record
+        self.peak_lbk = 20  # Average pulse bins before peak
+        self.peak_lfw = 40  # Average pulse bins after peak
+        self.bin_baseline = 40  # nbins of baseline including strax format
+        self.nbins_templete_wf = self.peak_lbk + self.peak_lfw  # number of avarage pulse bins
+        self.time_window = 100  # ns; event time window in strax format
+
+        self.nv_raw_record_dtype = [
+            (('Channel/PMT number', 'channel'), np.int16),  # As tentative, 20000 -- 20199, nV
+            (('Time resolution in ns', 'dt'), np.int16),  # 2 (ns) for nV
+            (('Start time of the interval (ns since unix epoch)', 'time'), np.int64),
+            (('Length of the interval in samples', 'length'), np.int32),  # 110
+            (("Integral in ADC x samples", 'area'), np.int32),  # Not implemented yet
+            (('Length of pulse to which the record belongs (without zero-padding)', 'pulse_length'), np.int32),  # 330
+            (('Fragment number in the pulse', 'record_i'), np.int16),  # 0, 1, 2, ...
+            (('Baseline in ADC counts. data = int(baseline) - data_orig', 'baseline'), np.float32), # Not implemented yet
+            (('Level of data reduction applied (strax.ReductionLevel enum)', 'reduction_level'), np.uint8),  # 0
+            (('Waveform data in ADC counts above baseline', 'data'), np.int16, self.strax_length),  # waveforms
+        ]
+
+        self.bins_baseline = 40  # nbins to add in strax format
+        self.pulse_height = 57  # mean of 1pe pulse height in ADC
+        self.pulse_spread = 26  # std. div of 1pe pulse height in ADC
+        self.pulse_baseline_ADC = 15925  # Actural baseline in ADC
+        self.pulse_baseline_spread = 3.5  # baseline spread in ADC
+
 
     def load_data(self, average_pulse_file_name, mc_file_name):
 
@@ -25,10 +54,11 @@ class generator():
         file = uproot.open(mc_file_name)  # pamn file
         events = file['events']
         self.hit_ids = events.array('pmthitid')  # nveto id 20000--20199
-        self.hit_times = events.array('pmthittime') * 1.e9 # unit: ns
+        self.hit_times = events.array('pmthittime')  # unit: second
         self.nentries = len(self.hit_ids)
 
         self.logger.info('#of events in TTree:'+str(self.nentries))
+
 
     def generate_by_mc(self):
 
@@ -39,94 +69,84 @@ class generator():
             wfs.append(wf)
         return wfs
 
+
     def generate_1ev_by_mc(self, eventid=0):
 
         strax_readable_list = self.generate(self.hit_ids[eventid], self.hit_times[eventid])
         return strax_readable_list
 
+
     def generate(self, pmt_ids, pmt_times):
 
-
-        # pmt_ids (20000--20119)
-        # pmt_times (ns)
-        self.__num_gen_tbins = 40  # bins bin/2ns
-        self.__num_spe_tbins = 50  # tbins bin/2ns
-        gen_pls_bins = int(50 + self.__num_gen_tbins + self.__num_spe_tbins)
-
-        nv_raw_record_dtype = [
-            (('Channel/PMT number', 'channel'), np.int16), # As tentative, 20000 -- 20199, nV
-            (('Time resolution in ns', 'dt'), np.int16), # 2 for nV
-            (('Start time of the interval (ns since unix epoch)', 'time'), np.int64), # Don't try to make O(second) long intervals!
-            (('Length of the interval in samples', 'length'), np.int32), # 110
-            (("Integral in ADC x samples", 'area'), np.int32), # Not implemented yet
-            (('Length of pulse to which the record belongs (without zero-padding)', 'pulse_length'), np.int32), # 330
-            (('Fragment number in the pulse', 'record_i'), np.int16), # 0, 1, 2, ...
-            (('Baseline in ADC counts. data = int(baseline) - data_orig', 'baseline'), np.float32), # Not implemented yet
-            (('Level of data reduction applied (strax.ReductionLevel enum)', 'reduction_level'), np.uint8), # 0
-            # Note this is defined as a SIGNED integer, so we can
-            # still represent negative values after subtracting baselines
-            (('Waveform data in ADC counts above baseline', 'data'), np.int16, gen_pls_bins), # waveforms
-        ]
-
-        strax_readable_list = []
-
-        for pmtid in range(20000, 20120):
-            #print('pmtid', pmtid)
-            clusters = self.make_clusters(pmtid, pmt_times, pmt_ids)
+        records = []
+        for pmtid in range(20000, 20120):  # each PMT
+            #print('PMT ID', pmtid)
+            clusters = self.make_clusters(pmtid, pmt_times, pmt_ids)  # each cluster
             #print(clusters)
+            #なぜかここで空
+
             for cluster in clusters:
+                if len(cluster)==0:
+                    continue
 
-                if len(cluster) == 0: continue
-                pulse = np.zeros(gen_pls_bins)
-                for time in cluster:
-                    gain_spread_factor = np.random.normal(1, 0.3)  # 30%, very tentative value estimatd from SWT
-                    pulse[50-15+int((time - cluster[0]) / 2) : 50-15+int((time - cluster[0]) / 2) + self.__num_spe_tbins] \
-                        += self.average_pulse * gain_spread_factor
+                for i in range(len(cluster)):
+                    first_time = cluster[0]
+                    cluster = [int((time - first_time) / self.dt) for time in cluster]
+                    total_pulse_length = np.ceil((self.bins_baseline + cluster[-1] + self.nbins_templete_wf)/self.strax_length)*self.strax_length
+                    wf = np.zeros(int(total_pulse_length))
+                    for time in cluster:
+                        fac = np.random.normal(self.pulse_height, self.pulse_spread)
+                        wf[self.bins_baseline + time:self.bins_baseline + time + self.nbins_templete_wf] += self.average_pulse * fac / self.pulse_height
+                    wf = np.random.normal(self.pulse_baseline_ADC, self.pulse_baseline_spread, len(wf)) - wf  # add baseline noise
+                    #records.append(wf)
 
-                # 3. Add noise (very, very tentative from SWT)
-                pulse += np.random.normal(loc=0., scale=6.58, size=(gen_pls_bins))
-                # 6.58 is tentative value from SWT 10 bit digitizer
+                    for i in range(np.int(np.ceil(len(wf) / self.strax_length))):
+                        data = wf[i * self.strax_length:(i + 1) * self.strax_length]
 
-                # 4. floorized
-                pulse = np.floor(pulse).astype(np.int16)
+                        record = np.array((
+                            pmtid,  # PMT ID 20000 -- 20199
+                            self.dt,  # ns time resolution
+                            int(cluster[0]),  # start time in ns
+                            self.strax_length,  # Length of interval in sample
+                            0,  # area (not implemented like a raw record)
+                            np.ceil(len(wf)), # Length of pulse to which the record belongs
+                            i,  # i_record
+                            0,  # baseline (not implemented like a raw record)
+                            0,  # 'Level of data reduction applied (strax.ReductionLevel enum)
+                            data
+                        ), dtype=self.nv_raw_record_dtype)
+                        records.append(record)
 
-                # 5. calc baseline
-                baseline = int(pulse[0:50].mean())
-                pulse = pulse - baseline
-                integral = pulse.sum()
 
-                record = np.array((
-                    pmtid,
-                    2, # ns
-                    int(cluster[0]),
-                    gen_pls_bins, # Length of interval in sample
-                    integral,
-                    gen_pls_bins, # Length of pulse to which the record belongs
-                    0,
-                    baseline,
-                    0, #'Level of data reduction applied (strax.ReductionLevel enum)
-                    pulse
-                ), dtype=nv_raw_record_dtype)
+        return records
 
-                strax_readable_list.append(record)
-                #print(pulse)
 
-        return strax_readable_list
+
 
     def make_clusters(self, pmtid, pmt_times, pmt_ids):
+
+        #print('id', pmtid)
+        #print('times', pmt_times)
+        #print('ids', pmt_ids)
+        # still represent negative values after subtracting baselines
         ## Make Clusters
-        ts = [time for time, pid in zip(pmt_times, pmt_ids) if pid == pmtid and 0 < time < 1.e9]  # ns
+        # Input: pmt_times = [500.e-9, 700.e-9, 900.e-9, 1200.e-9, 2000.e-9] ## sec
+        # time window 300 ns
+        # Output: [[0.5, 0.7], [0.9, 1.2], [2.0]]
+
+        ts = [time * 1.e9 for time, pid in zip(pmt_times, pmt_ids) if pid == pmtid]  # ns
+
+        #print('ts', ts)
         ts.sort()
         clusters = []
         time_list = []
         first_hit_t = -1
         in_window = False
-        time_window = self.__num_gen_tbins * 2  # ns
         for t in ts:
-            if first_hit_t != -1 and t - first_hit_t > time_window:
+            if first_hit_t != -1 and t - first_hit_t > self.time_window:
                 in_window = False
                 clusters.append(time_list)
-            if in_window == False:  # init hit of clusters
+            if in_window == False:  # first hit of clusters
                 time_list = []
                 time_list.append(t)
                 first_hit_t = t
@@ -134,7 +154,7 @@ class generator():
             else:
                 time_list.append(t)
         clusters.append(time_list)
-        # clusters : hit time list in the one group list in one PMT
+
         return clusters
 
 
@@ -142,7 +162,7 @@ class generator():
 if __name__ == '__main__':
 
     gen = generator()
-    gen.load_data('./data/average_pulse_v2.npy', './data/mc51s4_short.root')
+    gen.load_data('./data/ave_TEST000012_02242020121353_ch0.npy', './data/mc71_test1.root')
     strax_list = gen.generate_1ev_by_mc(0)
-    print(strax_list)
+    #print(strax_list)
 
