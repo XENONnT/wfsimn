@@ -46,6 +46,8 @@ class generator():
         self.pulse_baseline_ADC = 15925  # Actural baseline in ADC
         self.pulse_baseline_spread = 3.5  # baseline spread in ADC
 
+        self.event_time_interval = 1.e-6  # Each event will occur in this interval (second)
+
 
     def load_data(self, average_pulse_file_name, mc_file_name):
 
@@ -64,18 +66,18 @@ class generator():
 
         events_records = []
         for i_ev in tqdm(range(self.nentries)):
-            event_records = self.generate_1ev_by_mc(i_ev)
-            events_records.append(wf)
+            event_records = self.generate_1ev_by_mc(i_ev, i_ev*self.event_time_interval)
+            events_records.append(event_records)
         return events_records
 
 
-    def generate_1ev_by_mc(self, eventid=0):
+    def generate_1ev_by_mc(self, eventid=0, time_offset_sec=0.):
 
-        event_records = self.generate(self.hit_ids[eventid], self.hit_times[eventid])
+        event_records = self.generate(self.hit_ids[eventid], self.hit_times[eventid], time_offset_sec=time_offset_sec)
         return event_records
 
 
-    def generate(self, pmt_ids, pmt_times):
+    def generate(self, pmt_ids, pmt_times, time_offset_sec):
 
         event_records = []
         for pmtid in range(20000, 20120):  # each PMT
@@ -102,7 +104,7 @@ class generator():
                         record = np.array((
                             pmtid,  # PMT ID 20000 -- 20199
                             self.dt,  # ns time resolution
-                            int(cluster[0]),  # start time in ns
+                            int(cluster[0]) + time_offset_sec*1.e9,  # start time in ns
                             self.strax_length,  # Length of interval in sample
                             0,  # area (not implemented like a raw record)
                             np.ceil(len(wf)), # Length of pulse to which the record belongs
@@ -125,7 +127,7 @@ class generator():
         ## Make Clusters
         # Input: pmt_times = [500.e-9, 700.e-9, 900.e-9, 1200.e-9, 2000.e-9] ## sec
         # time window 300 ns
-        # Output: [[0.5, 0.7], [0.9, 1.2], [2.0]]
+        # Output: [[0.5, 0.7, 0.9, 1.2], [2.0]]
 
         ts = [time * 1.e9 for time, pid in zip(pmt_times, pmt_ids) if pid == pmtid]  # ns
 
