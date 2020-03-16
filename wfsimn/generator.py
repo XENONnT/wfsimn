@@ -126,27 +126,29 @@ class generator():
         # still represent negative values after subtracting baselines
         ## Make Clusters
         # Input: pmt_times = [500.e-9, 700.e-9, 900.e-9, 1200.e-9, 2000.e-9] ## sec
-        # time window 300 ns
-        # Output: [[0.5, 0.7, 0.9, 1.2], [2.0]]
+        # time window 200 ns
+        # Output: [[500, 700, 900], [1200], [2000]]
 
         ts = [time * 1.e9 for time, pid in zip(pmt_times, pmt_ids) if pid == pmtid]  # ns
 
         ts.sort()
         clusters = []
         time_list = []
-        first_hit_t = -1
+        last_hit_t = -1
         in_window = False
         for t in ts:
-            if first_hit_t != -1 and t - first_hit_t > self.time_window:
+
+            if last_hit_t != -1 and t - last_hit_t > self.time_window:
                 in_window = False
                 clusters.append(time_list)
             if in_window == False:  # first hit of clusters
                 time_list = []
                 time_list.append(t)
-                first_hit_t = t
+                last_hit_t = t
                 in_window = True
             else:
                 time_list.append(t)
+                last_hit_t = t
         clusters.append(time_list)
 
         return clusters
