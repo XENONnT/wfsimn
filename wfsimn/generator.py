@@ -19,8 +19,9 @@ class generator():
         np.random.seed(seed)
         self.__data_path = pkg_resources.resource_filename('wfsimn', 'data/')
 
+        # Strax parameters
         self.dt = 2  # Time resolution in ns
-        self.strax_length = 110  # waveform length in one record
+        self.record_length = 110  # waveform length in one record
         self.peak_lbk = 20  # Average pulse bins before peak
         self.peak_lfw = 40  # Average pulse bins after peak
         self.bin_baseline = 40  # nbins of baseline including strax format
@@ -37,10 +38,10 @@ class generator():
             (('Fragment number in the pulse', 'record_i'), np.int16),  # 0, 1, 2, ...
             (('Baseline in ADC counts. data = int(baseline) - data_orig', 'baseline'), np.float32), # Not implemented yet
             (('Level of data reduction applied (strax.ReductionLevel enum)', 'reduction_level'), np.uint8),  # 0
-            (('Waveform data in ADC counts above baseline', 'data'), np.int16, self.strax_length),  # waveforms
+            (('Waveform data in ADC counts above baseline', 'data'), np.int16, self.record_length),  # waveforms
         ]
 
-        self.bins_baseline = 40  # nbins to add in strax format
+        # Pulse parameters
         self.pulse_height = 57  # mean of 1pe pulse height in ADC
         self.pulse_spread = 26  # std. div of 1pe pulse height in ADC
         self.pulse_baseline_ADC = 15925  # Actural baseline in ADC
@@ -87,29 +88,29 @@ class generator():
                 if len(cluster)==0: continue
 
                 for i in range(len(cluster)):
-                    first_time = cluster[0]
-                    cluster = [int((time - first_time) / self.dt) for time in cluster]
-                    total_pulse_length = np.ceil((self.bins_baseline + cluster[-1] + self.nbins_templete_wf)/self.strax_length)*self.strax_length
+                    first_time = cluster[0]  # ns
+                    cluster = [int((time - first_time) / self.dt) for time in cluster]  # bins
+                    total_pulse_length = np.ceil((self.bin_baseline + cluster[-1] + self.nbins_templete_wf)/self.record_length)*self.record_length
                     wf = np.zeros(int(total_pulse_length))
 
                     for time in cluster:
                         fac = np.random.normal(self.pulse_height, self.pulse_spread)
-                        wf[self.bins_baseline + time:self.bins_baseline + time + self.nbins_templete_wf] += self.average_pulse * fac / self.pulse_height
+                        wf[self.bin_baseline + time:self.bin_baseline + time + self.nbins_templete_wf] += self.average_pulse * fac / self.pulse_height
                     wf = np.random.normal(self.pulse_baseline_ADC, self.pulse_baseline_spread, len(wf)) - wf  # add baseline noise
 
                     records = []
-                    for i in range(np.int(np.ceil(len(wf) / self.strax_length))):
-                        data = wf[i * self.strax_length:(i + 1) * self.strax_length]
+                    for i in range(np.int(np.ceil(len(wf) / self.record_length))):
+                        data = wf[i * self.record_length:(i + 1) * self.record_length]
 
                         record = np.array((
                             pmtid,  # PMT ID 20000 -- 20199
                             self.dt,  # ns time resolution
-                            int(cluster[0]) + time_offset_sec*1.e9,  # start time in ns
-                            self.strax_length,  # Length of interval in sample
+                            int(first_time) + time_offset_sec*1.e9,  # start time in ns
+                            self.record_length,  # Length of interval in sample
                             0,  # area (not implemented like a raw record)
                             np.ceil(len(wf)), # Length of pulse to which the record belongs
                             i,  # i_record
-                            0,  # baseline (not implemented like a raw record)
+                            np.mean(data[0:self.bin_baseline]),  # baseline
                             0,  # 'Level of data reduction applied (strax.ReductionLevel enum)
                             data
                         ), dtype=self.nv_raw_record_dtype)

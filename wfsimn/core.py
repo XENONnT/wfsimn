@@ -25,23 +25,23 @@ class manager:
         self.gen = wfsimn.generator()
         self.gen.load_data(self.average_pulse_file_name, self.mc_file_name)
 
-        self.wfs = []
+        self.events_records = []
         # print('Generating pulse...')
         for i_ev in tqdm(range(self.gen.nentries)):
-            wf = self.gen.generate_by_mc(i_ev)
-            self.wfs.append(wf)
+            event_records = self.gen.generate_by_mc(i_ev)
+            self.events_records.append(event_records)
         return
 
     def save_pickle(self, filename='wfs.dat'):
         self.logger.info('Save '+filename)
         with open(filename, 'wb') as file:
-            pickle.dump(self.wfs, file)
+            pickle.dump(self.events_records, file)
         return
 
     def load_pickle(self, filename='wfs.dat'):
         self.logger.info('Load '+filename)
         with open(filename, 'rb') as file:
-            self.wfs = pickle.load(file)
+            self.events_records = pickle.load(file)
         return
 
     def generator(self):
@@ -50,12 +50,9 @@ class manager:
         return gen
 
     def event_visualizer(self, eventid=0):
-        vis = wfsimn.visualizer(self.wfs[eventid])
+        vis = wfsimn.visualizer(self.events_records[eventid])
         return vis
 
-    def analyzer(self):
-        ana = wfsimn.analyzer(self.wfs)
-        return ana
 
 
 if __name__ == '__main__':
@@ -66,7 +63,7 @@ if __name__ == '__main__':
     man = manager()
 
     gen = man.generator()
-    man.wfs = gen.generate_by_mc()
+    man.events_records = gen.generate_by_mc()
     man.save_pickle('mc71_test1.pkl')
 
 
