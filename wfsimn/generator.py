@@ -13,133 +13,152 @@ sns.set(context='notebook', style='whitegrid', palette='bright')
 class generator():
 
     def __init__(self, seed=0):
+
         self.logger = logging.getLogger(__name__)
         self.logger.info('Generator Initialize')
         np.random.seed(seed)
         self.__data_path = pkg_resources.resource_filename('wfsimn', 'data/')
 
+        # Strax parameters
+        self.dt = 2  # Time resolution in ns
+        self.record_length = 110  # waveform length in one record
+        self.peak_lbk = 20  # Average pulse bins before peak
+        self.peak_lfw = 40  # Average pulse bins after peak
+        self.bin_baseline = 40  # nbins of baseline including strax format
+        self.nbins_templete_wf = self.peak_lbk + self.peak_lfw  # number of avarage pulse bins
+        self.time_window = 100  # ns; event time window in strax format
+
+        self.nv_raw_record_dtype = [
+            (('Channel/PMT number', 'channel'), np.int16),  # As tentative, 20000 -- 20199, nV
+            (('Time resolution in ns', 'dt'), np.int16),  # 2 (ns) for nV
+            (('Start time of the interval (ns since unix epoch)', 'time'), np.int64),
+            (('Length of the interval in samples', 'length'), np.int32),  # 110
+            (("Integral in ADC x samples", 'area'), np.int32),  # Not implemented yet
+            (('Length of pulse to which the record belongs (without zero-padding)', 'pulse_length'), np.int32),  # 330
+            (('Fragment number in the pulse', 'record_i'), np.int16),  # 0, 1, 2, ...
+            (('Baseline in ADC counts. data = int(baseline) - data_orig', 'baseline'), np.float32), # Not implemented yet
+            (('Level of data reduction applied (strax.ReductionLevel enum)', 'reduction_level'), np.uint8),  # 0
+            (('Waveform data in ADC counts above baseline', 'data'), np.int16, self.record_length),  # waveforms
+        ]
+
+        # Pulse parameters
+        self.pulse_height = 57  # mean of 1pe pulse height in ADC
+        self.pulse_spread = 26  # std. div of 1pe pulse height in ADC
+        self.pulse_baseline_ADC = 15925  # Actural baseline in ADC
+        self.pulse_baseline_spread = 3.5  # baseline spread in ADC
+
+        self.event_time_interval = 1.e-6  # Each event will occur in this interval (second)
+
+
     def load_data(self, average_pulse_file_name, mc_file_name):
 
         self.average_pulse = np.load(average_pulse_file_name)
 
-        file = uproot.open(mc_file_name)  # nSorted file
-        events = file['events/events']
+        file = uproot.open(mc_file_name)  # pamn file
+        events = file['events']
         self.hit_ids = events.array('pmthitid')  # nveto id 20000--20199
-        self.hit_times = events.array('pmthittime') * 1.e9 # unit: ns
+        self.hit_times = events.array('pmthittime')  # unit: second
         self.nentries = len(self.hit_ids)
 
         self.logger.info('#of events in TTree:'+str(self.nentries))
 
+
     def generate_by_mc(self):
 
-        wfs = []
-        # print('Generating pulse...')
+        events_records = []
         for i_ev in tqdm(range(self.nentries)):
-            wf = self.generate_1ev_by_mc(i_ev)
-            wfs.append(wf)
-        return wfs
+            event_records = self.generate_1ev_by_mc(i_ev, i_ev*self.event_time_interval)
+            events_records.append(event_records)
+        return events_records
 
-    def generate_1ev_by_mc(self, eventid=0):
 
-        #print('ev.', eventid)
+    def generate_1ev_by_mc(self, eventid=0, time_offset_sec=0.):
 
-        nv_times = [time for pmtid, time in zip(self.hit_ids[eventid], self.hit_times[eventid])
-                    if (20000 <= pmtid < 20120)]
-        time_minimum_value = np.mean(nv_times if nv_times else 0) - np.std(nv_times if nv_times else 0) * 3 # 3 sigma
-        min_timing = min([time for pmtid, time in zip(self.hit_ids[eventid], self.hit_times[eventid])
-                    if (20000 <= pmtid < 20120) & (time > time_minimum_value)],
-                         default=0)
+        event_records = self.generate(self.hit_ids[eventid], self.hit_times[eventid], time_offset_sec=time_offset_sec)
+        return event_records
 
-        hit_time_test = self.hit_times[eventid] - min_timing
 
-        #print('min timing', min_timing)
-        #print('fixed hit time', hit_time_test)
+    def generate(self, pmt_ids, pmt_times, time_offset_sec):
 
-        #for hit, pmt_id in zip(hit_time_test, self.hit_ids[eventid]):
-            #print('id-hit', pmt_id, hit)
+        event_records = []
+        for pmtid in range(20000, 20120):  # each PMT
+            clusters = self.make_clusters(pmtid, pmt_times, pmt_ids)  # each cluster
 
-        wf = self.generate(self.hit_ids[eventid], hit_time_test)
+            for cluster in clusters:
+                if len(cluster)==0: continue
 
-        return wf
+                for i in range(len(cluster)):
+                    first_time = cluster[0]  # ns
+                    cluster = [int((time - first_time) / self.dt) for time in cluster]  # bins
+                    total_pulse_length = np.ceil((self.bin_baseline + cluster[-1] + self.nbins_templete_wf)/self.record_length)*self.record_length
+                    wf = np.zeros(int(total_pulse_length))
 
-    def generate(self, pmt_ids, pmt_times):
-        # pmt_ids (20000--20119)
-        # pmt_times (ns)
-        self.__num_gen_tbins = 500  # bins bin/2ns
-        self.__num_spe_tbins = 50  # tbins bin/2ns
-        self.__num_pmts = 120  # total number of nVeto PMTs
+                    for time in cluster:
+                        fac = np.random.normal(self.pulse_height, self.pulse_spread)
+                        wf[self.bin_baseline + time:self.bin_baseline + time + self.nbins_templete_wf] += self.average_pulse * fac / self.pulse_height
+                    wf = np.random.normal(self.pulse_baseline_ADC, self.pulse_baseline_spread, len(wf)) - wf  # add baseline noise
 
-        self.__simulated_pulse = np.zeros((self.__num_gen_tbins, self.__num_pmts))
+                    records = []
+                    for i in range(np.int(np.ceil(len(wf) / self.record_length))):
+                        data = wf[i * self.record_length:(i + 1) * self.record_length]
 
-        # 1. Add dark rate
-        dark_ids, dark_times = self.add_dark()
-        pmt_ids = np.append(pmt_ids, dark_ids)
-        pmt_times = np.append(pmt_times, dark_times)
+                        record = np.array((
+                            pmtid,  # PMT ID 20000 -- 20199
+                            self.dt,  # ns time resolution
+                            int(first_time) + time_offset_sec*1.e9,  # start time in ns
+                            self.record_length,  # Length of interval in sample
+                            0,  # area (not implemented like a raw record)
+                            np.ceil(len(wf)), # Length of pulse to which the record belongs
+                            i,  # i_record
+                            np.mean(data[0:self.bin_baseline]),  # baseline
+                            0,  # 'Level of data reduction applied (strax.ReductionLevel enum)
+                            data
+                        ), dtype=self.nv_raw_record_dtype)
+                        records.append(record)
+                    event_records.append(records)
 
-        for (pmt_id, pmt_time) in zip(pmt_ids, pmt_times):
+        return event_records
 
-            if not 20000 <= pmt_id < 20120: continue
-            pmt_id = pmt_id - 20000
 
-            # 1. About timing
-            # 1.1 Transit Time Spread - tentative value from SWT
-            pmt_time = pmt_time + np.random.normal(0, 3.0/2.354820) # 3 ns FWHM as tentative
-            # 1.2 Transit Time - Not considered (No data from SWT)
-            # 1.3 After pulse - Not considered yet (conservatively)
 
-            # 2. Add Pulses
-            # 2.1 SPE Spread
-            gain_spread_factor = np.random.normal(1, 0.3)  # 30%, very tentative value estimatd from SWT
 
-            # 2.2 Add Pulse
-            tbin = int(pmt_time / 2)
-            active_bin = self.__num_gen_tbins - tbin
+    def make_clusters(self, pmtid, pmt_times, pmt_ids):
 
-            #print('debug1 pmtid, pmttime', pmt_id, pmt_time)
-            #print('debug2 tbin, active_bin', tbin, active_bin)
+        # still represent negative values after subtracting baselines
+        ## Make Clusters
+        # Input: pmt_times = [500.e-9, 700.e-9, 900.e-9, 1200.e-9, 2000.e-9] ## sec
+        # time window 200 ns
+        # Output: [[500, 700, 900], [1200], [2000]]
 
-            if 0 < active_bin <= self.__num_spe_tbins:
-                self.__simulated_pulse[tbin:tbin + active_bin, pmt_id] += self.average_pulse[0:active_bin] * gain_spread_factor
-            elif self.__num_spe_tbins < active_bin <= self.__num_gen_tbins:
-                active_bin = self.__num_spe_tbins
-                self.__simulated_pulse[tbin:tbin + active_bin, pmt_id] += self.average_pulse[0:active_bin] * gain_spread_factor
-            elif self.__num_gen_tbins < active_bin < self.__num_gen_tbins + self.__num_spe_tbins:
-                active_bin -= 500
-                self.__simulated_pulse[0:active_bin, pmt_id] += self.average_pulse[-1*active_bin:] * gain_spread_factor
+        ts = [time * 1.e9 for time, pid in zip(pmt_times, pmt_ids) if pid == pmtid]  # ns
+
+        ts.sort()
+        clusters = []
+        time_list = []
+        last_hit_t = -1
+        in_window = False
+        for t in ts:
+
+            if last_hit_t != -1 and t - last_hit_t > self.time_window:
+                in_window = False
+                clusters.append(time_list)
+            if in_window == False:  # first hit of clusters
+                time_list = []
+                time_list.append(t)
+                last_hit_t = t
+                in_window = True
             else:
-                continue
+                time_list.append(t)
+                last_hit_t = t
+        clusters.append(time_list)
 
-        # 3. Add noise (very, very tentative from SWT)
-        self.__simulated_pulse += np.random.normal(loc=0., scale=6.58, size=(self.__num_gen_tbins,self.__num_pmts))
-        # 6.58 is tentative value from SWT 10 bit digitizer
-
-        # 4. floorized
-        self.__simulated_pulse = np.floor(self.__simulated_pulse).astype(np.int16)
-
-        return self.__simulated_pulse
-
-
-    def add_dark(self):
-        dark_rate = 2200. # Hz
-        num_of_darks = np.random.poisson(dark_rate * 1000.e-9, 120)
-        pmt_ids, pmt_times = [], []
-        for i_pmt, num_of_dark in enumerate(num_of_darks):
-            if num_of_dark == 0: continue
-            for i in range(num_of_dark):
-                pmt_ids.append(i_pmt)
-                pmt_times.append(np.random.randint(0, 1000))
-
-        dark_ids = np.array(pmt_ids, dtype='uint8') + 20000
-        dark_times = np.array(pmt_times, dtype='uint8')
-        return dark_ids, dark_times
-
-    def add_dark_faster(self):
-        num_of_darks = np.random.poisson(2.2e3 * 1000.e-9 * 120)
-        dark_ids = np.random.randint(0, 120, num_of_darks).astype('uint8') + 20000
-        dark_times = np.random.randint(0, 1000, num_of_darks)
-        return dark_ids, dark_times
+        return clusters
 
 
 
 if __name__ == '__main__':
-    pass
+
+    gen = generator()
+    gen.load_data('./data/ave_TEST000012_02242020121353_ch0.npy', './data/mc71_test1.root')
+    strax_list = gen.generate_1ev_by_mc(0)
+

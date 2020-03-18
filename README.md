@@ -1,13 +1,13 @@
 # wfsimn
-XENON nVeto waveform generator (prototype)
+XENON nVeto waveform generator
 
 ### Input files
 1. average pulse shape
-2. MC nSorted data
+2. MC (ryu1kup/pamn) data
+
 
 ### Output file
-List of waveforms in each events.
-As a default, waveform is ndarray (500,120). (500 timebin (each 2ns) * 120 PMTs of nVeto)
+Strax friendly numpy structured arrays.
 
 
 ## Install
@@ -18,9 +18,8 @@ make
 ```
 
 ## Usage
-See `notebooks/simple_sample.ipynb`
+See `notebooks/usage.ipynb`
+
 
 ## Develop
 Main logic is written at `generate()` in `wfsimn/core.py`.
-User-friendly source should be developed.
-I also would like to prepare a document as soon as possible.
