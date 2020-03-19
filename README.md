@@ -18,7 +18,7 @@ make
 ```
 
 ## Usage
-See `notebooks/usage.ipynb`
+See `notebooks/usage_examples.ipynb`
 
 
 ## Develop
