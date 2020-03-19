@@ -19,7 +19,8 @@ class manager:
         self.__data_path = pkg_resources.resource_filename('wfsimn', 'data/')
 
         self.average_pulse_file_name = self.__data_path + 'ave_TEST000012_02242020121353_ch0.npy'
-        self.mc_file_name = self.__data_path + 'mc71_test1.root'
+        self.mc_file_name = self.__data_path + 'mc71_dangerous.root'
+        # self.mc_file_name = self.__data_path + 'mc71_test1.root'
 
     def generate_by_mc(self):
         self.gen = wfsimn.generator()
@@ -27,10 +28,24 @@ class manager:
 
         self.events_records = []
         # print('Generating pulse...')
-        for i_ev in tqdm(range(self.gen.nentries)):
-            event_records = self.gen.generate_by_mc(i_ev)
-            self.events_records.append(event_records)
+        self.events_records = self.gen.generate_by_mc()
         return
+
+    def generate_dark(self, dark_rate_hz=2000, generate_sec=1.e-3):
+
+        self.gen = wfsimn.generator()
+        self.gen.load_data(self.average_pulse_file_name, self.mc_file_name)
+        ## mc read is dummy
+
+        total_dark = int(120 * dark_rate_hz * generate_sec)
+        ids = np.random.randint(20000, 20120, total_dark)
+        times = np.sort(np.random.rand(total_dark) * generate_sec)
+
+        self.events_records = []
+        event_records = self.gen.generate(ids, times, 0)
+        self.events_records.append(event_records)
+        return
+
 
     def save_pickle(self, filename='wfs.dat'):
         self.logger.info('Save '+filename)
@@ -54,16 +69,28 @@ class manager:
         return vis
 
 
+    def flatten_events_records(self, events_records=None):
+        if events_records is None:
+            events_records = self.events_records
+
+        i = 0
+        while i < len(events_records):
+            while type(events_records[i]) != np.ndarray:
+                if not events_records[i]:
+                    events_records.pop(i)
+                    i -= 1
+                    break
+                else:
+                    events_records[i:i + 1] = events_records[i]
+            i += 1
+        return events_records
+
 
 if __name__ == '__main__':
 
     logging.basicConfig(level='DEBUG')
 
-    mc_name = 'mc71_test1'
+    #mc_name = 'mc71_test1'
     man = manager()
-
-    gen = man.generator()
-    man.events_records = gen.generate_by_mc()
-    man.save_pickle('mc71_test1.pkl')
-
+    man.generate_by_mc()
 

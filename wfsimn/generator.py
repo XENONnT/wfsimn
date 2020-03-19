@@ -78,7 +78,7 @@ class generator():
         return event_records
 
 
-    def generate(self, pmt_ids, pmt_times, time_offset_sec):
+    def generate(self, pmt_ids, pmt_times, time_offset_sec=0.):
 
         event_records = []
         for pmtid in range(20000, 20120):  # each PMT
