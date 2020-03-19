@@ -54,6 +54,19 @@ class manager:
         return vis
 
 
+    def flatten_events_records(self, events_records):
+        i = 0
+        while i < len(evetns_records):
+            while type(evetns_records[i]) != np.ndarray:
+                if not evetns_records[i]:
+                    evetns_records.pop(i)
+                    i -= 1
+                    break
+                else:
+                    evetns_records[i:i + 1] = evetns_records[i]
+            i += 1
+        return evetns_records
+
 
 if __name__ == '__main__':
 
