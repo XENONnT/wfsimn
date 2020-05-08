@@ -8,6 +8,7 @@ import uproot
 import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set(context='notebook', style='whitegrid', palette='bright')
+import strax
 
 
 class generator():
@@ -19,7 +20,7 @@ class generator():
         np.random.seed(seed)
         self.__data_path = pkg_resources.resource_filename('wfsimn', 'data/')
 
-        # Strax parameters
+        # Strax record parameters
         self.dt = 2  # Time resolution in ns
         self.record_length = 110  # waveform length in one record
         self.peak_lbk = 20  # Average pulse bins before peak
@@ -28,18 +29,7 @@ class generator():
         self.nbins_templete_wf = self.peak_lbk + self.peak_lfw  # number of avarage pulse bins
         self.time_window = 100  # ns; event time window in strax format
 
-        self.nv_raw_record_dtype = [
-            (('Channel/PMT number', 'channel'), np.int16),  # As tentative, 20000 -- 20199, nV
-            (('Time resolution in ns', 'dt'), np.int16),  # 2 (ns) for nV
-            (('Start time of the interval (ns since unix epoch)', 'time'), np.int64),
-            (('Length of the interval in samples', 'length'), np.int32),  # 110
-            (("Integral in ADC x samples", 'area'), np.int32),  # Not implemented yet
-            (('Length of pulse to which the record belongs (without zero-padding)', 'pulse_length'), np.int32),  # 330
-            (('Fragment number in the pulse', 'record_i'), np.int16),  # 0, 1, 2, ...
-            (('Baseline in ADC counts. data = int(baseline) - data_orig', 'baseline'), np.float32), # Not implemented yet
-            (('Level of data reduction applied (strax.ReductionLevel enum)', 'reduction_level'), np.uint8),  # 0
-            (('Waveform data in ADC counts above baseline', 'data'), np.int16, self.record_length),  # waveforms
-        ]
+        self.nv_raw_record_dtype = strax.raw_record_dtype()
 
         # Pulse parameters
         self.pulse_height = 57  # mean of 1pe pulse height in ADC
@@ -103,15 +93,13 @@ class generator():
                         data = wf[i * self.record_length:(i + 1) * self.record_length]
 
                         record = np.array((
-                            pmtid,  # PMT ID 20000 -- 20199
-                            self.dt,  # ns time resolution
                             int(first_time) + time_offset_sec*1.e9,  # start time in ns
                             self.record_length,  # Length of interval in sample
-                            0,  # area (not implemented like a raw record)
+                            self.dt,  # ns time resolution
+                            pmtid,  # PMT ID 20000 -- 20199
                             np.ceil(len(wf)), # Length of pulse to which the record belongs
                             i,  # i_record
                             np.mean(data[0:self.bin_baseline]),  # baseline
-                            0,  # 'Level of data reduction applied (strax.ReductionLevel enum)
                             data
                         ), dtype=self.nv_raw_record_dtype)
                         records.append(record)

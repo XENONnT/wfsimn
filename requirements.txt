@@ -5,4 +5,5 @@ matplotlib
 seaborn
 uproot
 tqdm
+strax
 -e .
