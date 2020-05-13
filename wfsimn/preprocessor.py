@@ -99,7 +99,7 @@ class preprocessor:
         return pmthitid[mask], pmthittime[mask]
 
 
-    def load_data(self):
+    def load_nsorted(self):
         """
         get pmthit branches with QE correction applied
         """
@@ -133,4 +133,4 @@ if __name__ == '__main__':
     inputfiles = 'input_mc201.txt'
     qe_table = '/home/ryuichi/pypamn/data/R5912QE.dat'
     preprocessor = preprocessor(inputfiles, qe_table)
-    pmthitid, pmthittime = preprocessor.load_data()
+    pmthitid, pmthittime = preprocessor.load_nsorted()
