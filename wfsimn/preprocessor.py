@@ -96,7 +96,10 @@ class preprocessor:
             mask[idx] = 0.01 * ((nv_pmt_qe[i+1] - nv_pmt_qe[i]) / (nv_pmt_wl[i+1] - nv_pmt_wl[i]) * (wavelength[idx] - nv_pmt_wl[i]) + nv_pmt_qe[i]) > prob
 
         mask = mask.astype(np.bool)
-        return pmthitid[mask], pmthittime[mask]
+        nentries = len(mask)
+        pmthitid_ = [pmthitid[i, mask[i]] for i in range(nentries)]
+        pmthittime_ = [pmthittime[i, mask[i]] for i in range(nentries)]
+        return pmthitid_, pmthittime_
 
 
     def load_nsorted(self):
@@ -120,12 +123,11 @@ class preprocessor:
                 pmthitid, pmthittime, pmthitenergy = self._to_ndarray(pmthitid, pmthittime, pmthitenergy)
                 pmthitid, pmthittime = self._apply_qe(pmthitid, pmthittime, pmthitenergy)
 
-                pmthitids.append(pmthitid)
-                pmthittimes.append(pmthittime)
+                pmthitids += pmthitid
+                pmthittimes +=pmthittime
 
-        self.pmthitid = np.concatenate(pmthitids)
-        self.pmthittime = np.concatenate(pmthittimes)
-
+        self.pmthitid = pmthitids
+        self.pmthittime = pmthittimes
         return self.pmthitid, self.pmthittime
 
 
