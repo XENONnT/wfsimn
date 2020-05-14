@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set(context='notebook', style='whitegrid', palette='bright')
 import strax
+import wfsimn
 
 
 class generator():
@@ -39,15 +40,20 @@ class generator():
 
         self.event_time_interval = 1.e-6  # Each event will occur in this interval (second)
 
+        self.preprocessor = wfsimn.preprocessor()
 
-    def load_data(self, average_pulse_file_name, mc_file_name):
+
+    def load_data(self, average_pulse_file_name, mc_file_name, qe_table='./data/R5912QE.dat'):
 
         self.average_pulse = np.load(average_pulse_file_name)
 
-        file = uproot.open(mc_file_name)  # pamn file
-        events = file['events']
-        self.hit_ids = events.array('pmthitid')  # nveto id 20000--20199
-        self.hit_times = events.array('pmthittime')  # unit: second
+        #file = uproot.open(mc_file_name)  # pamn file
+        #events = file['events']
+        #self.hit_ids = events.array('pmthitid')  # nveto id 20000--20199
+        #self.hit_times = events.array('pmthittime')  # unit: second
+        self.preprocessor.set_input(mc_file_name)
+        self.preprocessor.set_qe_table(qe_table)
+        self.hit_ids, self.hit_times = self.preprocessor.load_nsorted()
         self.nentries = len(self.hit_ids)
 
         self.logger.info('#of events in TTree:'+str(self.nentries))
@@ -147,6 +153,7 @@ class generator():
 if __name__ == '__main__':
 
     gen = generator()
-    gen.load_data('./data/ave_TEST000012_02242020121353_ch0.npy', './data/mc71_test1.root')
+    #gen.load_data('./data/ave_TEST000012_02242020121353_ch0.npy', './data/mc71_test1.root')
+    gen.load_data('./data/ave_TEST000012_02242020121353_ch0.npy', './data/mc_neutron_10000evt_Sort.root')
     strax_list = gen.generate_1ev_by_mc(0)
 
