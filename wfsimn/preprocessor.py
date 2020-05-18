@@ -1,12 +1,3 @@
-#
-# preprocessor for wfsimn input
-#
-# author: Ryuichi Ueno
-# version: 0.0.1
-# last update: 11 May 2020
-#
-
-
 import os
 from tqdm import tqdm
 import numpy as np
@@ -17,14 +8,13 @@ import uproot
 class preprocessor:
     """
     nSort files preprocessor for wfsimn
-    """ 
+    """
     def __init__(self, inputfiles=None, qe_table=None):
         self.set_input(inputfiles)
         self.qe_table = qe_table
         self.pmthitid = None
         self.pmthittime = None
         self.pmthitenergy = None
-
 
     def set_input(self, inputfiles):
         """
@@ -40,7 +30,6 @@ class preprocessor:
             inputfiles = [inputfiles]
         self.input = inputfiles
 
-
     def add_input(self, inputfiles):
         """
         add input files to self.input
@@ -52,10 +41,8 @@ class preprocessor:
             inputfiles = [inputfiles]
         self.input = self.input + inputfiles
 
-
     def set_qe_table(self, qe_table):
         self.qe_table = qe_table
-
 
     def _to_ndarray(self, pmthitid, pmthittime, pmthitenergy, filling=-1):
         """
@@ -79,7 +66,6 @@ class preprocessor:
 
         return pmthitid_, pmthittime_, pmthitenergy_
 
-
     def _apply_qe(self, pmthitid, pmthittime, pmthitenergy):
         """
         apply QE correction to pmthitid, pmthittime and pmthitenergy
@@ -100,7 +86,6 @@ class preprocessor:
         pmthitid_ = [pmthitid[i, mask[i]] for i in range(nentries)]
         pmthittime_ = [pmthittime[i, mask[i]] for i in range(nentries)]
         return pmthitid_, pmthittime_
-
 
     def load_nsorted(self):
         """
