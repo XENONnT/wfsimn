@@ -3,7 +3,7 @@ XENON nVeto waveform generator
 
 ### Input files
 1. average pulse shape
-2. MC (ryu1kup/pamn) data
+2. MC (XENON1T/mc/nSort) data
 
 
 ### Output file
