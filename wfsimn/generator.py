@@ -47,11 +47,7 @@ class generator():
 
         self.average_pulse = np.load(average_pulse_file_name)
 
-        #file = uproot.open(mc_file_name)  # pamn file
-        #events = file['events']
-        #self.hit_ids = events.array('pmthitid')  # nveto id 20000--20199
-        #self.hit_times = events.array('pmthittime')  # unit: second
-        self.preprocessor.set_input(mc_file_name)
+        self.preprocessor.set_input(mc_file_name) # nSort file(s)
         self.preprocessor.set_qe_table(qe_table)
         self.hit_ids, self.hit_times = self.preprocessor.load_nsorted()
         self.nentries = len(self.hit_ids)
@@ -153,7 +149,6 @@ class generator():
 if __name__ == '__main__':
 
     gen = generator()
-    #gen.load_data('./data/ave_TEST000012_02242020121353_ch0.npy', './data/mc71_test1.root')
     gen.load_data('./data/ave_TEST000012_02242020121353_ch0.npy', './data/mc_neutron_10000evt_Sort.root')
     strax_list = gen.generate_1ev_by_mc(0)
 

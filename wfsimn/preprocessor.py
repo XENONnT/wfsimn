@@ -113,7 +113,7 @@ class preprocessor:
 
         pmthitids = []
         pmthittimes = []
-        with tqdm(self.input, desc='load input files') as pbar:
+        with tqdm(self.input, desc='load nsorted') as pbar:
             for i, f in enumerate(pbar):
                 pbar.set_postfix(input=f.split('/')[-1])
                 events = uproot.open(f)['events/events']
@@ -124,7 +124,7 @@ class preprocessor:
                 pmthitid, pmthittime = self._apply_qe(pmthitid, pmthittime, pmthitenergy)
 
                 pmthitids += pmthitid
-                pmthittimes +=pmthittime
+                pmthittimes += pmthittime
 
         self.pmthitid = pmthitids
         self.pmthittime = pmthittimes
