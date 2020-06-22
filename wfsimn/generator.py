@@ -6,8 +6,6 @@ import pandas as pd
 from tqdm import tqdm
 import uproot
 import matplotlib.pyplot as plt
-import seaborn as sns
-sns.set(context='notebook', style='whitegrid', palette='bright')
 import strax
 
 

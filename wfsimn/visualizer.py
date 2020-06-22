@@ -3,7 +3,6 @@ import logging
 import numpy as np
 from scipy import fftpack
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 
 class visualizer():
@@ -11,7 +10,6 @@ class visualizer():
     def __init__(self, event_records):
         self.logger = logging.getLogger(__name__)
         self.event_records = event_records
-        sns.set(style='whitegrid')
         self.reset_to_write_cbar = False
 
 
