@@ -19,8 +19,8 @@ class manager:
         self.__data_path = pkg_resources.resource_filename('wfsimn', 'data/')
 
         self.average_pulse_file_name = self.__data_path + 'ave_TEST000012_02242020121353_ch0.npy'
-        self.mc_file_name = self.__data_path + 'mc71_dangerous.root'
-        # self.mc_file_name = self.__data_path + 'mc71_test1.root'
+        self.mc_file_name = self.__data_path + 'mc_neutron_10000evt_Sort.root'
+        self.qe_table = self.__data_path + 'R5912QE.dat'
 
     def generate_by_mc(self):
         self.gen = wfsimn.generator()
@@ -34,7 +34,7 @@ class manager:
     def generate_dark(self, dark_rate_hz=2000, generate_sec=1.e-3):
 
         self.gen = wfsimn.generator()
-        self.gen.load_data(self.average_pulse_file_name, self.mc_file_name)
+        self.gen.load_data(self.average_pulse_file_name, self.mc_file_name, self.qe_table)
         ## mc read is dummy
 
         total_dark = int(120 * dark_rate_hz * generate_sec)
