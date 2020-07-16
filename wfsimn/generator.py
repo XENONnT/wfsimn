@@ -41,7 +41,7 @@ class generator():
         self.preprocessor = wfsimn.preprocessor()
 
 
-    def load_data(self, average_pulse_file_name, mc_file_name, qe_table='./data/R5912QE.dat'):
+    def load_data(self, average_pulse_file_name, mc_file_name, qe_table):
 
         self.average_pulse = np.load(average_pulse_file_name)
 
@@ -147,6 +147,6 @@ class generator():
 if __name__ == '__main__':
 
     gen = generator()
-    gen.load_data('./data/ave_TEST000012_02242020121353_ch0.npy', './data/mc_neutron_10000evt_Sort.root')
+    gen.load_data('./data/ave_TEST000012_02242020121353_ch0.npy', './data/mc_neutron_10000evt_Sort.root', './data/average_nv_qe1.txt')
     strax_list = gen.generate_1ev_by_mc(0)
 
