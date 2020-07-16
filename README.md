@@ -12,13 +12,11 @@ Strax friendly numpy structured arrays.
 
 ## Install
 ```
-git clone https://github.com/mzks/wfsimn.git
-cd wfsimn
-make
+pip install git+https://github.com/XENONnT/wfsimn.git
 ```
 
 ## Usage
-See `notebooks/usage_examples.ipynb`
+Clone this repository and see `notebooks/usage_examples.ipynb`.
 
 
 ## Develop
