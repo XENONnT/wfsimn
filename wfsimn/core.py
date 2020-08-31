@@ -19,7 +19,7 @@ class manager:
         self.__data_path = pkg_resources.resource_filename('wfsimn', 'data/')
 
         self.average_pulse_file_name = self.__data_path + 'ave_TEST000012_02242020121353_ch0.npy'
-        self.mc_file_name = self.__data_path + 'mc_neutron_10000evt_Sort.root'
+        self.mc_file_name = self.__data_path + 'dangerous_neutron_100_Sort.root'
         self.qe_table = self.__data_path + 'average_nv_qe1.txt'
 
     def generate_by_mc(self):
@@ -93,4 +93,7 @@ if __name__ == '__main__':
     #mc_name = 'mc71_test1'
     man = manager()
     man.generate_by_mc()
+    wfs = man.events_records
+
+    print(wfs[0])
 

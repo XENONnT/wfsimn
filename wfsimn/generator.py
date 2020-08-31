@@ -28,7 +28,7 @@ class generator():
         self.nbins_templete_wf = self.peak_lbk + self.peak_lfw  # number of avarage pulse bins
         self.time_window = 100  # ns; event time window in strax format
 
-        self.nv_raw_record_dtype = strax.raw_record_dtype()
+        self.nv_raw_record_dtype = strax.raw_record_dtype(self.record_length)
 
         # Pulse parameters
         self.pulse_height = 57  # mean of 1pe pulse height in ADC
@@ -80,7 +80,8 @@ class generator():
                 for i in range(len(cluster)):
                     first_time = cluster[0]  # ns
                     cluster = [int((time - first_time) / self.dt) for time in cluster]  # bins
-                    total_pulse_length = np.ceil((self.bin_baseline + cluster[-1] + self.nbins_templete_wf)/self.record_length)*self.record_length
+                    actual_pulse_length = self.bin_baseline + cluster[-1] + self.nbins_templete_wf
+                    total_pulse_length = np.ceil((actual_pulse_length)/self.record_length)*self.record_length
                     wf = np.zeros(int(total_pulse_length))
 
                     for time in cluster:
@@ -96,7 +97,7 @@ class generator():
                             int(first_time) + time_offset_sec*1.e9,  # start time in ns
                             self.record_length,  # Length of interval in sample
                             self.dt,  # ns time resolution
-                            pmtid,  # PMT ID 20000 -- 20199
+                            pmtid - 20000 + 2000,  # PMT ID 2000 -- 2199
                             np.ceil(len(wf)), # Length of pulse to which the record belongs
                             i,  # i_record
                             np.mean(data[0:self.bin_baseline]),  # baseline
@@ -148,5 +149,5 @@ if __name__ == '__main__':
 
     gen = generator()
     gen.load_data('./data/ave_TEST000012_02242020121353_ch0.npy', './data/mc_neutron_10000evt_Sort.root', './data/average_nv_qe1.txt')
-    strax_list = gen.generate_1ev_by_mc(0)
+    strax_list = gen.generate_1ev_by_mc(1)
 
